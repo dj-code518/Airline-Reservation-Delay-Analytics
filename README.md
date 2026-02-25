@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="ontime-performance.png" width="1000">
+  <img src="C:\Users\DIBYAJYOTI\OneDrive\Desktop\Data Analytics Project\Airline-Reservation-Delay-Analytics\ontime-performance.png" width="1000">
 </p>
 
 This project designs and implements a complete Airline Reservation & Delay Analytics System using modern Data Engineering tools and best practices.
