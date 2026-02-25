@@ -1,3 +1,24 @@
+## 📊 Dashboard Preview
+
+### 🔹 Overview
+![Dashboard Overview](assets/screenshots/dashboard-overview.png)
+
+---
+
+### 🔹 Monthly On-Time Performance & Delay Cause Breakdown
+![On Time Performance](assets/screenshots/on-time-performance.png)
+![Delay Cause Breakdown](assets/screenshots/delay-cause-breakdown.png)
+
+---
+
+### 🔹 Hourly Delay Analysis
+![Hourly Delay](assets/screenshots/hourly-delay.png)
+
+---
+
+### 🔹 Top Routes & Revenue Trend
+![Top Routes & Revenue](assets/screenshots/top-routes-revenue.png)
+
 This project designs and implements a complete Airline Reservation & Delay Analytics System using modern Data Engineering tools and best practices.
 
 It simulates a real-world airline analytics platform capable of:
