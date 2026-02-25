@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airline Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --card: #22263a;
+    --accent: #4f8ef7; --accent2: #7c3aed; --accent3: #10b981;
+    --warn: #f59e0b; --danger: #ef4444;
+    --text: #e2e8f0; --muted: #94a3b8; --border: #2d3350;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  header { background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%);
+    border-bottom: 1px solid var(--border); padding: 16px 28px;
+    display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 1.3rem; font-weight: 700; color: var(--text); }
+  header h1 span { color: var(--accent); }
+  .badge { background: var(--accent2); color: #fff; font-size: .7rem; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+
+  .top-bar { display: flex; gap: 12px; padding: 16px 28px; flex-wrap: wrap; align-items: center; }
+  select, button { background: var(--card); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 14px; border-radius: 8px; font-size: .85rem; cursor: pointer; outline: none; }
+  button { background: var(--accent); border-color: var(--accent); font-weight: 600; transition: opacity .2s; }
+  button:hover { opacity: .85; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; padding: 0 28px 20px; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; }
+  .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 12px 12px 0 0; }
+  .kpi.blue::before   { background: var(--accent); }
+  .kpi.purple::before { background: var(--accent2); }
+  .kpi.green::before  { background: var(--accent3); }
+  .kpi.amber::before  { background: var(--warn); }
+  .kpi.red::before    { background: var(--danger); }
+  .kpi-label { font-size: .73rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
+  .kpi-value { font-size: 1.75rem; font-weight: 800; }
+  .kpi-sub { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+  .kpi-delta { font-size: .8rem; font-weight: 600; margin-top: 2px; }
+  .up { color: var(--accent3); } .down { color: var(--danger); }
+
+  .grid { display: grid; gap: 16px; padding: 0 28px 28px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 2fr 1fr; }
+
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .chart-card h3 { font-size: .88rem; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .chart-card h3 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .canvas-wrap { position: relative; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  th { background: var(--surface); padding: 10px 12px; text-align: left; font-size: .72rem;
+    text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: rgba(79,142,247,.05); }
+  .pill { display: inline-block; font-size: .7rem; padding: 2px 9px; border-radius: 20px; font-weight: 600; }
+  .pill-g { background: rgba(16,185,129,.15); color: var(--accent3); }
+  .pill-a { background: rgba(245,158,11,.15); color: var(--warn); }
+  .pill-r { background: rgba(239,68,68,.15); color: var(--danger); }
+
+  .map-placeholder { background: var(--surface); border-radius: 8px; height: 280px;
+    display: flex; align-items: center; justify-content: center; color: var(--muted);
+    font-size: .85rem; border: 1px dashed var(--border); flex-direction: column; gap: 8px; }
+
+  footer { text-align: center; padding: 16px; color: var(--muted); font-size: .75rem; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>✈ <span>SkyAnalytics</span> — Airline Delay & Reservation Intelligence</h1>
+  <span class="badge">LIVE DEMO</span>
+</header>
+
+<div class="top-bar">
+  <select id="airlineFilter">
+    <option value="ALL">All Airlines</option>
+    <option value="AA">American Airlines (AA)</option>
+    <option value="DL">Delta Air Lines (DL)</option>
+    <option value="UA">United Airlines (UA)</option>
+    <option value="WN">Southwest Airlines (WN)</option>
+    <option value="B6">JetBlue Airways (B6)</option>
+  </select>
+  <select id="dateRange">
+    <option value="7">Last 7 Days</option>
+    <option value="30" selected>Last 30 Days</option>
+    <option value="90">Last 90 Days</option>
+    <option value="365">Last Year</option>
+  </select>
+  <select id="metricType">
+    <option value="delay">Delay Analysis</option>
+    <option value="revenue">Revenue Analysis</option>
+    <option value="load">Load Factor</option>
+  </select>
+  <button onclick="refreshDashboard()">↻ Refresh</button>
+</div>
+
+<!-- KPI Row -->
+<div class="kpi-row">
+  <div class="kpi blue">
+    <div class="kpi-label">Total Flights</div>
+    <div class="kpi-value" id="kpi-flights">284,512</div>
+    <div class="kpi-delta up">▲ 3.2% vs prior period</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-label">On-Time Rate</div>
+    <div class="kpi-value" id="kpi-ontime">78.4%</div>
+    <div class="kpi-delta up">▲ 1.8pp</div>
+  </div>
+  <div class="kpi amber">
+    <div class="kpi-label">Avg Arrival Delay</div>
+    <div class="kpi-value" id="kpi-delay">14.2 min</div>
+    <div class="kpi-delta up">▼ 0.9 min</div>
+  </div>
+  <div class="kpi red">
+    <div class="kpi-label">Cancellation Rate</div>
+    <div class="kpi-value" id="kpi-cancel">1.8%</div>
+    <div class="kpi-delta up">▼ 0.3pp</div>
+  </div>
+  <div class="kpi purple">
+    <div class="kpi-label">Total Revenue</div>
+    <div class="kpi-value" id="kpi-rev">$4.2B</div>
+    <div class="kpi-delta up">▲ 7.1%</div>
+  </div>
+</div>
+
+<!-- Row 1 -->
+<div class="grid grid-2">
+  <div class="chart-card">
+    <h3><span class="dot" style="background:var(--accent)"></span>Monthly On-Time Performance by Airline</h3>
+    <div class="canvas-wrap"><canvas id="ontimeChart" height="200"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3><span class="dot" style="background:var(--warn)"></span>Delay Cause Breakdown</h3>
+    <div class="canvas-wrap"><canvas id="delayCauseChart" height="200"></canvas></div>
+  </div>
+</div>
+
+<!-- Row 2 -->
+<div class="grid grid-3">
+  <div class="chart-card">
+    <h3><span class="dot" style="background:var(--accent3)"></span>Average Delay by Hour of Day</h3>
+    <div class="canvas-wrap"><canvas id="hourlyChart" height="180"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3><span class="dot" style="background:var(--accent2)"></span>Delay Severity Distribution</h3>
+    <div class="canvas-wrap"><canvas id="severityChart" height="180"></canvas></div>
+  </div>
+</div>
+
+<!-- Row 3: Route Table + Revenue trend -->
+<div class="grid grid-2">
+  <div class="chart-card">
+    <h3><span class="dot" style="background:var(--accent)"></span>Top Delayed Routes</h3>
+    <table>
+      <thead><tr><th>Route</th><th>Airline</th><th>Avg Delay</th><th>Flights</th><th>Status</th></tr></thead>
+      <tbody id="routeTable"></tbody>
+    </table>
+  </div>
+  <div class="chart-card">
+    <h3><span class="dot" style="background:var(--accent3)"></span>Revenue & Load Factor Trend</h3>
+    <div class="canvas-wrap"><canvas id="revenueChart" height="210"></canvas></div>
+  </div>
+</div>
+
+<footer>Airline Reservation & Delay Analytics Platform · Data Warehouse Project · Feb 2026</footer>
+
+<script>
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const AIRLINES = ['AA','DL','UA','WN','B6'];
+const AIRLINE_COLORS = {
+  AA: '#e53e3e', DL: '#4f8ef7', UA: '#9f7aea', WN: '#f59e0b', B6: '#10b981'
+};
+
+function rnd(min, max) { return Math.random()*(max-min)+min; }
+function rndInt(min, max) { return Math.round(rnd(min,max)); }
+
+// ── Build datasets ──────────────────────────────
+function buildOntimeData() {
+  return AIRLINES.map(al => ({
+    label: al,
+    data: MONTHS.map(() => rnd(72, 88)),
+    borderColor: AIRLINE_COLORS[al],
+    backgroundColor: AIRLINE_COLORS[al] + '20',
+    tension: 0.4, fill: false, pointRadius: 4
+  }));
+}
+
+function buildHourlyDelay() {
+  const hours = Array.from({length:24}, (_,i)=>i);
+  return {
+    labels: hours.map(h => `${String(h).padStart(2,'0')}:00`),
+    data:   hours.map(h => {
+      // Peak delays morning (6-9am) and evening (5-8pm)
+      if (h>=6 && h<=9) return rnd(18,28);
+      if (h>=17 && h<=20) return rnd(22,35);
+      if (h>=23 || h<=4) return rnd(5,12);
+      return rnd(10,18);
+    })
+  };
+}
+
+const ROUTE_DATA = [
+  {route:'JFK→LAX', airline:'AA', delay:28, flights:3421, status:'High'},
+  {route:'ORD→ATL', airline:'DL', delay:24, flights:2894, status:'High'},
+  {route:'LAX→SFO', airline:'UA', delay:19, flights:4102, status:'Medium'},
+  {route:'MIA→JFK', airline:'AA', delay:17, flights:1987, status:'Medium'},
+  {route:'DEN→ORD', airline:'UA', delay:15, flights:2341, status:'Medium'},
+  {route:'BOS→DCA', airline:'DL', delay:12, flights:1654, status:'Low'},
+  {route:'SEA→SFO', airline:'WN', delay:11, flights:2109, status:'Low'},
+  {route:'PHX→LAS', airline:'B6', delay:9,  flights:1453, status:'Low'},
+];
+
+// ── Charts ──────────────────────────────────────
+let charts = {};
+
+function initCharts() {
+  const gridColor = 'rgba(255,255,255,.05)';
+  const textColor = '#94a3b8';
+  Chart.defaults.color = textColor;
+  Chart.defaults.borderColor = gridColor;
+
+  // 1. On-Time line chart
+  const ctx1 = document.getElementById('ontimeChart').getContext('2d');
+  charts.ontime = new Chart(ctx1, {
+    type: 'line',
+    data: { labels: MONTHS, datasets: buildOntimeData() },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: {size:11} } } },
+      scales: {
+        y: { min: 65, max: 95, ticks: { callback: v => v+'%' },
+          title: { display: true, text: 'On-Time %', color: textColor } },
+        x: { grid: { color: gridColor } }
+      }
+    }
+  });
+
+  // 2. Delay cause doughnut
+  const ctx2 = document.getElementById('delayCauseChart').getContext('2d');
+  charts.delayCause = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['Late Aircraft','Carrier','NAS (Airspace)','Weather','Security'],
+      datasets: [{
+        data: [38, 27, 18, 14, 3],
+        backgroundColor: ['#4f8ef7','#7c3aed','#10b981','#f59e0b','#ef4444'],
+        borderWidth: 0, hoverOffset: 6
+      }]
+    },
+    options: {
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 10, font: {size: 11} } },
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw}%` } }
+      }
+    }
+  });
+
+  // 3. Hourly delay bar
+  const hourly = buildHourlyDelay();
+  const ctx3 = document.getElementById('hourlyChart').getContext('2d');
+  const barColors = hourly.data.map(v =>
+    v>25 ? '#ef4444' : v>18 ? '#f59e0b' : '#4f8ef7'
+  );
+  charts.hourly = new Chart(ctx3, {
+    type: 'bar',
+    data: {
+      labels: hourly.labels,
+      datasets: [{ label: 'Avg Delay (min)', data: hourly.data, backgroundColor: barColors, borderRadius: 3 }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { title: { display: true, text: 'Minutes' } } }
+    }
+  });
+
+  // 4. Severity doughnut
+  const ctx4 = document.getElementById('severityChart').getContext('2d');
+  charts.severity = new Chart(ctx4, {
+    type: 'doughnut',
+    data: {
+      labels: ['On Time','Minor (<15m)','Moderate (15-60m)','Severe (>60m)'],
+      datasets: [{
+        data: [78, 9, 9, 4],
+        backgroundColor: ['#10b981','#4f8ef7','#f59e0b','#ef4444'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      cutout: '60%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: {size:10} } },
+        tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw}%` } }
+      }
+    }
+  });
+
+  // 5. Revenue + Load Factor combined
+  const ctx5 = document.getElementById('revenueChart').getContext('2d');
+  charts.revenue = new Chart(ctx5, {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: [
+        { type: 'bar', label: 'Revenue ($M)', data: MONTHS.map(() => rndInt(280,460)),
+          backgroundColor: '#4f8ef7' + '80', yAxisID: 'y' },
+        { type: 'line', label: 'Load Factor (%)', data: MONTHS.map(() => rnd(75,88)),
+          borderColor: '#10b981', tension: 0.4, yAxisID: 'y1',
+          pointRadius: 3, fill: false }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: {size:11} } } },
+      scales: {
+        y:  { position: 'left',  title: { display:true, text:'$M' } },
+        y1: { position: 'right', min: 60, max: 100,
+              title: { display:true, text:'Load %' },
+              grid: { drawOnChartArea: false },
+              ticks: { callback: v=>v+'%' } }
+      }
+    }
+  });
+
+  // Route table
+  buildRouteTable(ROUTE_DATA);
+}
+
+function buildRouteTable(data) {
+  const tbody = document.getElementById('routeTable');
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>${r.route}</strong></td>
+      <td>${r.airline}</td>
+      <td>${r.delay} min</td>
+      <td>${r.flights.toLocaleString()}</td>
+      <td><span class="pill ${r.status==='Low'?'pill-g':r.status==='Medium'?'pill-a':'pill-r'}">${r.status}</span></td>
+    </tr>`).join('');
+}
+
+function refreshDashboard() {
+  const airline = document.getElementById('airlineFilter').value;
+  // Simulate data refresh
+  document.getElementById('kpi-flights').textContent = rndInt(250000, 320000).toLocaleString();
+  document.getElementById('kpi-ontime').textContent  = rnd(74,84).toFixed(1) + '%';
+  document.getElementById('kpi-delay').textContent   = rnd(11,18).toFixed(1) + ' min';
+  document.getElementById('kpi-cancel').textContent  = rnd(1.2,2.5).toFixed(1) + '%';
+  document.getElementById('kpi-rev').textContent     = '$' + rnd(3.8,5.1).toFixed(1) + 'B';
+
+  // Update ontime chart
+  charts.ontime.data.datasets = buildOntimeData();
+  charts.ontime.update();
+
+  // Update hourly
+  const h = buildHourlyDelay();
+  charts.hourly.data.datasets[0].data = h.data;
+  charts.hourly.update();
+}
+
+window.addEventListener('DOMContentLoaded', initCharts);
+</script>
+</body>
+</html>
