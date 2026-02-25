@@ -1,5 +1,4 @@
 
-https://dj-code518.github.io/Airline-Reservation-Delay-Analytics/
 
 This project designs and implements a complete Airline Reservation & Delay Analytics System using modern Data Engineering tools and best practices.
 
